@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+
 """
 516 Hackers - Attack Simulation Tool
 Captive Portal Security Testing Script
@@ -124,4 +124,145 @@ class PortalAttackSimulator:
                     failed_attempts = i
                     break
                     
-                time.sleep(0.1)  # Small
+                time.sleep(0.1)  # Small delay between requests
+            
+            if failed_attempts > 0:
+                self.results.append({
+                    'test': 'Rate Limiting',
+                    'status': 'SECURE',
+                    'details': f'Rate limiting triggered after {failed_attempts} attempts'
+                })
+            else:
+                self.results.append({
+                    'test': 'Rate Limiting', 
+                    'status': 'VULNERABLE',
+                    'details': 'No rate limiting detected'
+                })
+                
+        except Exception as e:
+            self.results.append({
+                'test': 'Rate Limiting',
+                'status': 'ERROR', 
+                'details': str(e)
+            })
+    
+    def test_sql_injection(self):
+        """Test for basic SQL injection vulnerabilities"""
+        print("\n[TEST] SQL Injection")
+        
+        payloads = [
+            "admin' OR '1'='1",
+            "' OR 1=1-- -", 
+            "'; DROP TABLE users-- -"
+        ]
+        
+        vulnerable = False
+        
+        for payload in payloads:
+            try:
+                login_data = {
+                    'username': payload,
+                    'password': 'any_password'
+                }
+                
+                response = self.session.post(
+                    urljoin(self.base_url, '/login'),
+                    data=login_data,
+                    allow_redirects=False
+                )
+                
+                # Check if we got redirected (successful login)
+                if response.status_code == 302:
+                    vulnerable = True
+                    break
+                    
+            except Exception:
+                continue
+        
+        if vulnerable:
+            self.results.append({
+                'test': 'SQL Injection',
+                'status': 'VULNERABLE',
+                'details': 'SQL injection payload successful'
+            })
+        else:
+            self.results.append({
+                'test': 'SQL Injection',
+                'status': 'SECURE',
+                'details': 'SQL injection attempts blocked'
+            })
+    
+    def run_all_tests(self):
+        """Run all security tests"""
+        self.print_banner()
+        
+        print("🚀 Starting 516 Hackers Security Tests...")
+        print(f"🔗 Target: {self.base_url}")
+        print("")
+        
+        tests = [
+            self.test_session_fixation,
+            self.test_csrf_vulnerability, 
+            self.test_rate_limiting,
+            self.test_sql_injection
+        ]
+        
+        for test in tests:
+            test()
+            time.sleep(1)  # Be nice to the server
+        
+        self.print_results()
+    
+    def print_results(self):
+        """Print test results"""
+        print("\n" + "="*60)
+        print("📊 516 HACKERS SECURITY TEST RESULTS")
+        print("="*60)
+        
+        for result in self.results:
+            status_icon = "✅" if result['status'] == 'SECURE' else "❌" if result['status'] == 'VULNERABLE' else "⚠️"
+            print(f"{status_icon} {result['test']}: {result['status']}")
+            print(f"   📝 {result['details']}")
+            print()
+        
+        # Summary
+        vulnerable_count = len([r for r in self.results if r['status'] == 'VULNERABLE'])
+        secure_count = len([r for r in self.results if r['status'] == 'SECURE'])
+        
+        print(f"📈 SUMMARY: {secure_count} secure, {vulnerable_count} vulnerable")
+        
+        if vulnerable_count > 0:
+            print("\n⚠️  SECURITY WARNING: Vulnerabilities detected!")
+            print("💡 These are INTENTIONAL for educational purposes")
+        else:
+            print("\n🎉 All tests passed! (In a real lab, expect some vulnerabilities)")
+        
+        print("\n🔒 Remember: This is a training environment")
+        print("📚 Use findings to learn about security improvements")
+
+if __name__ == "__main__":
+    import argparse
+    
+    parser = argparse.ArgumentParser(description='516 Hackers Attack Simulator')
+    parser.add_argument('--url', default='http://localhost:5000', help='Portal URL')
+    parser.add_argument('--test', choices=['all', 'session', 'csrf', 'rate', 'sql'], 
+                       default='all', help='Specific test to run')
+    
+    args = parser.parse_args()
+    
+    simulator = PortalAttackSimulator(args.url)
+    
+    if args.test == 'all':
+        simulator.run_all_tests()
+    else:
+        # Run specific test
+        test_map = {
+            'session': simulator.test_session_fixation,
+            'csrf': simulator.test_csrf_vulnerability,
+            'rate': simulator.test_rate_limiting, 
+            'sql': simulator.test_sql_injection
+        }
+        
+        simulator.print_banner()
+        test_map[args.test]()
+        simulator.print_results()
