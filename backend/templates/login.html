@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>516 Hackers - Captive Portal Login</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="login-page">
+    <div class="container">
+        <div class="header">
+            <h1>🔐 516 Hackers Lab</h1>
+            <p class="subtitle">Captive Portal Security Training</p>
+            <div class="warning-banner">
+                ⚠️ FOR EDUCATIONAL USE ONLY - ISOLATED LAB ENVIRONMENT
+            </div>
+        </div>
+
+        <div class="login-form">
+            <h2>Portal Authentication</h2>
+            
+            {% if error %}
+            <div class="alert alert-error">
+                {{ error }}
+            </div>
+            {% endif %}
+
+            <form method="POST" action="{{ url_for('login') }}">
+                <div class="form-group">
+                    <label for="username">Username:</label>
+                    <input type="text" id="username" name="username" value="guest" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password:</label>
+                    <input type="password" id="password" name="password" value="guest123" required>
+                </div>
+
+                <button type="submit" class="btn-primary">Connect to Network</button>
+            </form>
+
+            <div class="demo-credentials">
+                <h3>Demo Credentials:</h3>
+                <p><strong>Username:</strong> guest</p>
+                <p><strong>Password:</strong> guest123</p>
+            </div>
+
+            <div class="security-links">
+                <a href="{{ url_for('hijack_demo') }}">Session Security Demo</a>
+                <a href="/admin">Admin Panel</a>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <p>Built with ❤️ by <strong>516 Hackers</strong> for security education</p>
+            <p class="disclaimer">
+                This is a training environment. Do not use real credentials.
+            </p>
+        </footer>
+    </div>
+</body>
+</html>
