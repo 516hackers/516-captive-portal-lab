@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# 516 Hackers Captive Portal Network Setup Script
+# 516 Hackers Captive Portal Lab - Network Setup Script
 # FOR LAB USE ONLY
 
 set -e
@@ -27,6 +27,7 @@ PORTAL_PORT="5000"
 echo "📡 Setting up captive portal network..."
 echo "SSID: $SSID"
 echo "IP Range: $IP_RANGE"
+echo "Gateway: $GATEWAY"
 echo ""
 
 # Check for wireless interface
@@ -39,72 +40,113 @@ fi
 
 # Stop conflicting services
 echo "🛑 Stopping network services..."
-systemctl stop NetworkManager
-systemctl stop wpa_supplicant
+systemctl stop NetworkManager 2>/dev/null || true
+systemctl stop wpa_supplicant 2>/dev/null || true
+systemctl stop systemd-resolved 2>/dev/null || true
+
+# Kill any existing hostapd or dnsmasq processes
+echo "🔪 Killing existing processes..."
+pkill hostapd 2>/dev/null || true
+pkill dnsmasq 2>/dev/null || true
 
 # Configure hostapd
 echo "📝 Configuring hostapd..."
-cat > /etc/hostapd/hostapd.conf << EOF
-# 516 Hackers Lab Configuration
-interface=$INTERFACE
-driver=nl80211
-ssid=$SSID
-hw_mode=g
-channel=$CHANNEL
-wmm_enabled=0
-macaddr_acl=0
-auth_algs=1
-ignore_broadcast_ssid=0
-wpa=2
-wpa_passphrase=$WPA_PASSPHRASE
-wpa_key_mgmt=WPA-PSK
-wpa_pairwise=TKIP
-rsn_pairwise=CCMP
-EOF
+cp network/hostapd.conf /etc/hostapd/hostapd.conf
+chmod 644 /etc/hostapd/hostapd.conf
 
 # Configure dnsmasq
 echo "📝 Configuring dnsmasq..."
-cat > /etc/dnsmasq.conf << EOF
-# 516 Hackers Lab DNS Configuration
-interface=$INTERFACE
-dhcp-range=192.168.100.10,192.168.100.100,255.255.255.0,24h
-dhcp-option=3,$GATEWAY
-dhcp-option=6,$GATEWAY
-server=8.8.8.8
-log-queries
-log-dhcp
-address=/516hackers.org/$GATEWAY
-EOF
+cp network/dnsmasq.conf /etc/dnsmasq.conf
+chmod 644 /etc/dnsmasq.conf
 
 # Configure network interface
 echo "🌐 Setting up network interface..."
-ip addr add $GATEWAY/24 dev $INTERFACE
+# Bring down interface
+ip link set $INTERFACE down 2>/dev/null || true
+# Set to managed mode
+iwconfig $INTERFACE mode managed 2>/dev/null || true
+# Bring up interface
 ip link set $INTERFACE up
+# Set IP address
+ip addr flush dev $INTERFACE 2>/dev/null || true
+ip addr add $GATEWAY/24 dev $INTERFACE
 
-# Configure iptables for NAT and redirect
+# Configure iptables for captive portal
 echo "🔧 Configuring iptables rules..."
-iptables -t nat -F
-iptables -F
+chmod +x network/iptables-rules.sh
+./network/iptables-rules.sh
 
-# NAT for internet sharing
-iptables -t nat -A POSTROUTING -o eth0 -j MASQUERADE
-iptables -A FORWARD -i $INTERFACE -o eth0 -j ACCEPT
-iptables -A FORWARD -i eth0 -o $INTERFACE -m state --state RELATED,ESTABLISHED -j ACCEPT
+# Enable IP forwarding
+echo "🔄 Enabling IP forwarding..."
+echo 1 > /proc/sys/net/ipv4/ip_forward
+sysctl -w net.ipv4.ip_forward=1
 
-# Redirect all HTTP traffic to portal
-iptables -t nat -A PREROUTING -i $INTERFACE -p tcp --dport 80 -j DNAT --to-destination $GATEWAY:$PORTAL_PORT
-iptables -t nat -A PREROUTING -i $INTERFACE -p tcp --dport 443 -j DNAT --to-destination $GATEWAY:$PORTAL_PORT
-
+# Start services
 echo "🚀 Starting services..."
-systemctl start hostapd
+
+# Start hostapd in background
+echo "📶 Starting hostapd..."
+hostapd -B /etc/hostapd/hostapd.conf
+
+# Start dnsmasq
+echo "🌐 Starting dnsmasq..."
 systemctl start dnsmasq
+
+# Wait for services to start
+sleep 3
+
+# Verify services are running
+echo "🔍 Verifying services..."
+if pgrep hostapd > /dev/null; then
+    echo "✅ hostapd is running"
+else
+    echo "❌ hostapd failed to start"
+    exit 1
+fi
+
+if pgrep dnsmasq > /dev/null; then
+    echo "✅ dnsmasq is running"
+else
+    echo "❌ dnsmasq failed to start"
+    exit 1
+fi
+
+# Show network status
+echo ""
+echo "📊 Network Status:"
+echo "Interface: $INTERFACE"
+echo "IP Address: $(ip addr show $INTERFACE | grep 'inet ' | awk '{print $2}')"
+echo "SSID: $SSID"
+echo "Channel: $CHANNEL"
+
+# Show iptables rules
+echo ""
+echo "🛡️ iptables Rules Summary:"
+iptables -t nat -L PREROUTING -n | grep "516"
+iptables -L FORWARD -n | grep "ACCEPT"
 
 echo ""
 echo "✅ 516 Hackers Captive Portal Lab Setup Complete!"
 echo ""
-echo "📶 Network: $SSID"
-echo "🔑 Password: $WPA_PASSPHRASE"
-echo "🌐 Portal: http://$GATEWAY:$PORTAL_PORT"
+echo "🎯 Next Steps:"
+echo "   1. Start the portal: docker-compose up"
+echo "   2. Connect to WiFi: $SSID"
+echo "   3. Password: $WPA_PASSPHRASE"
+echo "   4. Open any website to test redirect"
 echo ""
-echo "💡 Connect to WiFi network '$SSID' and open any HTTP website"
-echo "⚠️  Remember: This is for educational use only!"
+echo "📡 Network Info:"
+echo "   WiFi: $SSID"
+echo "   Password: $WPA_PASSPHRASE"
+echo "   Portal: http://$GATEWAY:$PORTAL_PORT"
+echo ""
+echo "⚠️  Safety Reminder:"
+echo "   - FOR EDUCATIONAL USE ONLY"
+echo "   - ISOLATED LAB ENVIRONMENT"
+echo "   - DO NOT EXPOSE TO INTERNET"
+echo ""
+echo "🔧 Troubleshooting:"
+echo "   View logs: docker-compose logs"
+echo "   Reset: ./network/iptables-cleanup.sh"
+echo "   Check clients: iw dev $INTERFACE station dump"
+echo ""
+echo "Built with ❤️ by 516 Hackers"
