@@ -8,10 +8,8 @@ services:
     environment:
       - FLASK_ENV=development
       - SECRET_KEY=insecure_secret_key_for_lab
-      - DB_PATH=/app/data/sessions.db
     volumes:
       - ./backend:/app
-      - portal_data:/app/data
     networks:
       - portal_network
 
@@ -21,20 +19,6 @@ services:
       - "6379:6379"
     networks:
       - portal_network
-
-  security-monitor:
-    image: python:3.9-alpine
-    working_dir: /app
-    volumes:
-      - ./scripts:/app
-    command: ["python", "security-test.py"]
-    networks:
-      - portal_network
-    depends_on:
-      - portal-backend
-
-volumes:
-  portal_data:
 
 networks:
   portal_network:
