@@ -125,10 +125,5 @@ def logout():
     session.clear()
     return redirect('/')
 
-@app.route('/health')
-def health():
-    return "516 Hackers Portal - Running OK"
-
 if __name__ == '__main__':
-    # Important: Use 0.0.0.0 to allow Cloud Shell access
     app.run(host='0.0.0.0', port=5000, debug=True)
