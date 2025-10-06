@@ -1,4 +1,3 @@
-
 set -e
 
 echo "🎯 516 Hackers Captive Portal Lab Setup"
@@ -46,58 +45,35 @@ fi
 echo "🐳 Building Docker containers..."
 docker-compose build
 
-# Create missing configuration files
-echo "⚙️ Creating configuration files..."
+# Create simple backend files without heredoc
+echo "⚙️ Creating essential backend files..."
 
-# Create backend/requirements.txt if missing
-if [ ! -f "backend/requirements.txt" ]; then
-    cat > backend/requirements.txt << 'EOF'
-Flask==2.3.3
-Werkzeug==2.3.7
+# Create backend/requirements.txt with echo
+echo "Flask==2.3.3
 redis==4.6.0
-requests==2.31.0
-pycryptodome==3.18.0
-Flask-Limiter==3.3.0
-Flask-WTF==1.1.1
-WTForms==3.0.1
-python-dotenv==1.0.0
-EOF
-fi
+requests==2.31.0" > backend/requirements.txt
 
-# Create backend/config.py if missing
-if [ ! -f "backend/config.py" ]; then
-    cat > backend/config.py << 'EOF'
-import os
-from datetime import timedelta
+# Create minimal backend/app.py
+cat > backend/app.py << 'APPDONE'
+from flask import Flask
+app = Flask(__name__)
+@app.route('/')
+def home():
+    return "516 Hackers Portal - Running!"
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5000)
+APPDONE
 
-class Config:
-    SECRET_KEY = os.environ.get('SECRET_KEY', '516-hackers-insecure-key-for-lab')
-    PORT = int(os.environ.get('PORT', 5000))
-    PERMANENT_SESSION_LIFETIME = timedelta(minutes=60)
-    SESSION_COOKIE_HTTPONLY = True
-    SESSION_COOKIE_SECURE = False
-    
-    PORTAL_CONFIG = {
-        'ssid': '516-Hackers-Lab',
-        'welcome_message': '516 Hackers Security Training Portal',
-        'redirect_url': 'https://516hackers.org',
-        'session_timeout': 3600,
-        'max_devices': 10,
-        'admin_email': 'admin@516hackers.org'
-    }
-    
-    SECURITY_HEADERS = {
-        'X-Content-Type-Options': 'nosniff',
-        'X-Frame-Options': 'DENY',
-        'X-XSS-Protection': '1; mode=block'
-    }
-
-config = {
-    'development': Config,
-    'default': Config
-}
-EOF
-fi
+# Create backend/Dockerfile
+cat > backend/Dockerfile << 'DOCKERDONE'
+FROM python:3.9-alpine
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+COPY . .
+EXPOSE 5000
+CMD ["python", "app.py"]
+DOCKERDONE
 
 # Set permissions
 echo "🔐 Setting file permissions..."
@@ -108,34 +84,11 @@ chmod +x network/iptables-cleanup.sh 2>/dev/null || true
 chmod +x scripts/attack-simulator.py 2>/dev/null || true
 chmod +x scripts/security-test.py 2>/dev/null || true
 
-# Create lab configuration
-echo "⚙️ Creating lab configuration..."
-cat > lab.config << EOF
-# 516 Hackers Lab Configuration
-LAB_NAME="516 Hackers Captive Portal Lab"
-LAB_VERSION="1.0"
-LAB_MODE="training"
-NETWORK_SSID="516-Hackers-Lab"
-PORTAL_URL="http://localhost:5000"
-ADMIN_USERNAME="admin"
-ADMIN_PASSWORD="516HackersSecure123"
-SECURITY_LEVEL="training"
-EOF
-
 echo ""
 echo "🎉 516 Hackers Lab Setup Complete!"
 echo ""
 echo "🚀 To start the lab:"
 echo "   docker-compose up"
-echo ""
-echo "📚 Available commands:"
-echo "   python scripts/attack-simulator.py    - Run attack simulations"
-echo "   python scripts/security-test.py       - Security testing"
-echo ""
-echo "⚠️  IMPORTANT:"
-echo "   - Use only in isolated environments"
-echo "   - Do not expose to the internet"
-echo "   - For educational purposes only"
 echo ""
 echo "🔗 Portal will be available at: http://localhost:5000"
 echo ""
