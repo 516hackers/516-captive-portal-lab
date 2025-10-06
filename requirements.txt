@@ -1,0 +1,12 @@
+
+cat > requirements.txt << 'EOF'
+Flask==2.3.3
+Werkzeug==2.3.7
+redis==4.6.0
+requests==2.31.0
+pycryptodome==3.18.0
+Flask-Limiter==3.3.0
+Flask-WTF==1.1.1
+WTForms==3.0.1
+python-dotenv==1.0.0
+EOF
