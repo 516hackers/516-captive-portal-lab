@@ -1,6 +1,3 @@
-#!/bin/bash
-
-# 516 Hackers Captive Portal Lab Setup Script
 
 set -e
 
@@ -28,32 +25,88 @@ echo "📁 Creating lab directories..."
 mkdir -p logs
 mkdir -p data
 mkdir -p captures
+mkdir -p backend/uploads
+mkdir -p backend/secure-uploads
 
 # Setup Python virtual environment
 echo "🐍 Setting up Python environment..."
 python3 -m venv venv
 source venv/bin/activate
 
-# Install Python dependencies
+# Install Python dependencies if requirements.txt exists
 echo "📦 Installing Python dependencies..."
-pip install -r requirements.txt
+if [ -f "requirements.txt" ]; then
+    pip install -r requirements.txt
+else
+    echo "⚠️ requirements.txt not found, installing default packages..."
+    pip install Flask redis requests
+fi
 
 # Build Docker images
 echo "🐳 Building Docker containers..."
 docker-compose build
 
-# Download additional tools
-echo "🔧 Downloading security tools..."
-if [ ! -f "tools/session_hijack_tool.py" ]; then
-    mkdir -p tools
-    curl -o tools/session_hijack_tool.py https://raw.githubusercontent.com/516hackers/security-tools/main/session_hijack.py
+# Create missing configuration files
+echo "⚙️ Creating configuration files..."
+
+# Create backend/requirements.txt if missing
+if [ ! -f "backend/requirements.txt" ]; then
+    cat > backend/requirements.txt << 'EOF'
+Flask==2.3.3
+Werkzeug==2.3.7
+redis==4.6.0
+requests==2.31.0
+pycryptodome==3.18.0
+Flask-Limiter==3.3.0
+Flask-WTF==1.1.1
+WTForms==3.0.1
+python-dotenv==1.0.0
+EOF
+fi
+
+# Create backend/config.py if missing
+if [ ! -f "backend/config.py" ]; then
+    cat > backend/config.py << 'EOF'
+import os
+from datetime import timedelta
+
+class Config:
+    SECRET_KEY = os.environ.get('SECRET_KEY', '516-hackers-insecure-key-for-lab')
+    PORT = int(os.environ.get('PORT', 5000))
+    PERMANENT_SESSION_LIFETIME = timedelta(minutes=60)
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SECURE = False
+    
+    PORTAL_CONFIG = {
+        'ssid': '516-Hackers-Lab',
+        'welcome_message': '516 Hackers Security Training Portal',
+        'redirect_url': 'https://516hackers.org',
+        'session_timeout': 3600,
+        'max_devices': 10,
+        'admin_email': 'admin@516hackers.org'
+    }
+    
+    SECURITY_HEADERS = {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'X-XSS-Protection': '1; mode=block'
+    }
+
+config = {
+    'development': Config,
+    'default': Config
+}
+EOF
 fi
 
 # Set permissions
 echo "🔐 Setting file permissions..."
-chmod +x network/setup-network.sh
-chmod +x scripts/attack-simulator.py
-chmod +x scripts/security-test.py
+chmod +x network/setup-network.sh 2>/dev/null || true
+chmod +x network/cleanup-lab.sh 2>/dev/null || true
+chmod +x network/iptables-rules.sh 2>/dev/null || true
+chmod +x network/iptables-cleanup.sh 2>/dev/null || true
+chmod +x scripts/attack-simulator.py 2>/dev/null || true
+chmod +x scripts/security-test.py 2>/dev/null || true
 
 # Create lab configuration
 echo "⚙️ Creating lab configuration..."
@@ -76,9 +129,8 @@ echo "🚀 To start the lab:"
 echo "   docker-compose up"
 echo ""
 echo "📚 Available commands:"
-echo "   ./scripts/attack-simulator.py    - Run attack simulations"
-echo "   ./scripts/security-test.py       - Security testing"
-echo "   ./network/setup-network.sh       - Setup wireless network (requires sudo)"
+echo "   python scripts/attack-simulator.py    - Run attack simulations"
+echo "   python scripts/security-test.py       - Security testing"
 echo ""
 echo "⚠️  IMPORTANT:"
 echo "   - Use only in isolated environments"
